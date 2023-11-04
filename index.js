@@ -29,6 +29,10 @@ async function run() {
       .db('HotelBooking')
       .collection('HotelRooms')
 
+    const userCollection = client.db('HotelBooking').collection('HotelUsers')
+
+    // rooms related endpoints
+
     app.post('/api/v1/create-rooms', async (req, res) => {
       const newRoom = req.body
       const result = await hotelBookingCollection.insertOne(newRoom)
@@ -46,6 +50,14 @@ async function run() {
       const id = req.params.id
       const query = { _id: new ObjectId(id) }
       const result = await hotelBookingCollection.findOne(query)
+      res.send(result)
+    })
+
+    // user related endpoints
+
+    app.post('/api/v1/users', async (req, res) => {
+      const user = req.body
+      const result = await userCollection.insertOne(user)
       res.send(result)
     })
 
