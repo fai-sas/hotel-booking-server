@@ -35,6 +35,13 @@ async function run() {
       res.send(result)
     })
 
+    app.get('/api/v1/get-rooms', async (req, res) => {
+      const cursor = hotelBookingCollection.find()
+      const result = await cursor.toArray()
+      console.log(result)
+      res.send(result)
+    })
+
     //  Send a ping to confirm a successful connection
     await client.db('admin').command({ ping: 1 })
     console.log(
