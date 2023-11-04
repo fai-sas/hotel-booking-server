@@ -24,6 +24,17 @@ async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect()
+
+    const hotelBookingCollection = client
+      .db('HotelBooking')
+      .collection('HotelRooms')
+
+    app.post('/api/v1/create-rooms', async (req, res) => {
+      const newRoom = req.body
+      const result = await hotelBookingCollection.insertOne(newRoom)
+      res.send(result)
+    })
+
     //  Send a ping to confirm a successful connection
     await client.db('admin').command({ ping: 1 })
     console.log(
