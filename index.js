@@ -25,31 +25,30 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect()
 
-    const hotelBookingCollection = client
-      .db('HotelBooking')
-      .collection('HotelRooms')
-
+    const roomCollection = client.db('HotelBooking').collection('HotelRooms')
     const userCollection = client.db('HotelBooking').collection('HotelUsers')
+    const bookingCollection = client
+      .db('HotelBooking')
+      .collection('RoomBookings')
 
     // rooms related endpoints
 
     app.post('/api/v1/create-rooms', async (req, res) => {
       const newRoom = req.body
-      const result = await hotelBookingCollection.insertOne(newRoom)
+      const result = await roomCollection.insertOne(newRoom)
       res.send(result)
     })
 
     app.get('/api/v1/get-rooms', async (req, res) => {
-      const cursor = hotelBookingCollection.find()
+      const cursor = roomCollection.find()
       const result = await cursor.toArray()
-      console.log(result)
       res.send(result)
     })
 
     app.get('/api/v1/get-rooms/:id', async (req, res) => {
       const id = req.params.id
       const query = { _id: new ObjectId(id) }
-      const result = await hotelBookingCollection.findOne(query)
+      const result = await roomCollection.findOne(query)
       res.send(result)
     })
 
@@ -65,6 +64,14 @@ async function run() {
       const cursor = userCollection.find()
       const users = await cursor.toArray()
       res.send(users)
+    })
+
+    // booking related endpoints
+    app.post('/api/v1/create-booking', async (req, res) => {
+      const booking = req.body
+      console.log(booking)
+      const result = await bookingCollection.insertOne(booking)
+      res.send(result)
     })
 
     //  Send a ping to confirm a successful connection
