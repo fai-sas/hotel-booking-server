@@ -67,13 +67,13 @@ async function run() {
     })
 
     // booking related endpoints
-    app.post('/api/v1/create-booking', async (req, res) => {
+    app.post('/api/v1/bookings', async (req, res) => {
       const booking = req.body
       const result = await bookingCollection.insertOne(booking)
       res.send(result)
     })
 
-    app.get('/api/v1/get-booking', async (req, res) => {
+    app.get('/api/v1/bookings', async (req, res) => {
       let query = {}
       if (req.query?.email) {
         query = { email: req.query.email }
@@ -82,10 +82,25 @@ async function run() {
       res.send(result)
     })
 
-    app.get('/api/v1/get-booking/:id', async (req, res) => {
+    app.get('/api/v1/bookings/:id', async (req, res) => {
       const id = req.params.id
       const query = { _id: new ObjectId(id) }
       const result = await bookingCollection.findOne(query)
+      res.send(result)
+    })
+
+    app.patch('/api/v1/bookings/:id', async (req, res) => {
+      const id = req.params.id
+      const filter = { _id: new ObjectId(id) }
+
+      const updatedBooking = req.body
+
+      const updateDoc = {
+        $set: {
+          ...updatedBooking,
+        },
+      }
+      const result = await bookingCollection.updateOne(filter, updateDoc)
       res.send(result)
     })
 
