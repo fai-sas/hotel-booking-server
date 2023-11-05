@@ -55,7 +55,7 @@ async function run() {
       .collection('RoomBookings')
 
     // auth related endpoints
-    app.post('/jwt', logger, async (req, res) => {
+    app.post('/api/v1/jwt', async (req, res) => {
       const user = req.body
       console.log(user)
 
@@ -72,7 +72,7 @@ async function run() {
         .send({ success: true })
     })
 
-    app.post('/logout', logger, async (req, res) => {
+    app.post('/api/v1/logout', async (req, res) => {
       const user = req.body
       console.log('logging out', user)
       res.clearCookie('token', { maxAge: 0 }).send({ success: true })
@@ -86,7 +86,15 @@ async function run() {
     })
 
     app.get('/api/v1/get-rooms', async (req, res) => {
-      const cursor = roomCollection.find()
+      let sortObject = {}
+      const sortField = req.query.sortField
+      const sortOrder = req.query.sortOrder
+
+      if (sortField) {
+        sortObject[sortField] = sortOrder
+      }
+
+      const cursor = roomCollection.find().sort(sortObject)
       const result = await cursor.toArray()
       res.send(result)
     })
@@ -128,7 +136,7 @@ async function run() {
       res.send(result)
     })
 
-    app.get('/api/v1/bookings/:id', verifyToken, async (req, res) => {
+    app.get('/api/v1/bookings/:id', async (req, res) => {
       const id = req.params.id
       const query = { _id: new ObjectId(id) }
       const result = await bookingCollection.findOne(query)
@@ -150,7 +158,7 @@ async function run() {
       res.send(result)
     })
 
-    app.delete('/api/v1/delete-booking/:id', async (req, res) => {
+    app.delete('/api/v1/delete-booking/:id', verifyToken, async (req, res) => {
       const id = req.params.id
       const query = { _id: new ObjectId(id) }
       const result = await bookingCollection.deleteOne(query)
