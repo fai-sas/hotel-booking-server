@@ -2,11 +2,20 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb')
 require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
+const jwt = require('jsonwebtoken')
+const cookieParser = require('cookie-parser')
 
 const app = express()
 
-app.use(cors())
+app.use(
+  cors({
+    origin: ['http://localhost:5173', 'http://localhost:5174'],
+    credentials: true,
+  })
+)
+
 app.use(express.json())
+app.use(cookieParser())
 
 const port = process.env.PORT || 5000
 
@@ -19,6 +28,20 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 })
+
+const verifyToken = async (req, res, next) => {
+  const token = req.cookies?.token
+  if (!token) {
+    return res.status(401).send({ message: 'unauthorized access' })
+  }
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ message: 'unauthorized access' })
+    }
+    req.user = decoded
+    next()
+  })
+}
 
 async function run() {
   try {
@@ -73,7 +96,7 @@ async function run() {
       res.send(result)
     })
 
-    app.get('/api/v1/bookings', async (req, res) => {
+    app.get('/api/v1/bookings', verifyToken, async (req, res) => {
       let query = {}
       if (req.query?.email) {
         query = { email: req.query.email }
@@ -82,7 +105,7 @@ async function run() {
       res.send(result)
     })
 
-    app.get('/api/v1/bookings/:id', async (req, res) => {
+    app.get('/api/v1/bookings/:id', verifyToken, async (req, res) => {
       const id = req.params.id
       const query = { _id: new ObjectId(id) }
       const result = await bookingCollection.findOne(query)
