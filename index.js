@@ -54,8 +54,25 @@ async function run() {
       .db('HotelBooking')
       .collection('RoomBookings')
 
-    // rooms related endpoints
+    // auth related endpoints
+    app.post('/jwt', logger, async (req, res) => {
+      const user = req.body
+      console.log(user)
 
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: '1h',
+      })
+
+      res
+        .cookie('token', token, {
+          httpOnly: true,
+          secure: false,
+          // sameSite: 'none'
+        })
+        .send({ success: true })
+    })
+
+    // rooms related endpoints
     app.post('/api/v1/create-rooms', async (req, res) => {
       const newRoom = req.body
       const result = await roomCollection.insertOne(newRoom)
