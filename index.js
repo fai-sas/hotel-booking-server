@@ -69,7 +69,6 @@ async function run() {
     // booking related endpoints
     app.post('/api/v1/create-booking', async (req, res) => {
       const booking = req.body
-      console.log(booking)
       const result = await bookingCollection.insertOne(booking)
       res.send(result)
     })
@@ -80,6 +79,13 @@ async function run() {
         query = { email: req.query.email }
       }
       const result = await bookingCollection.find(query).toArray()
+      res.send(result)
+    })
+
+    app.get('/api/v1/get-booking/:id', async (req, res) => {
+      const id = req.params.id
+      const query = { _id: new ObjectId(id) }
+      const result = await bookingCollection.findOne(query)
       res.send(result)
     })
 
