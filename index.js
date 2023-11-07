@@ -9,7 +9,13 @@ const app = express()
 
 app.use(
   cors({
-    origin: ['http://localhost:5173', 'http://localhost:5174'],
+    origin: [
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'https://hotel-booking-cf.netlify.app',
+      'https://hotel-booking-1f71b.firebaseapp.com',
+      'https://hotel-booking-1f71b.web.app',
+    ],
     credentials: true,
   })
 )
@@ -66,8 +72,8 @@ async function run() {
       res
         .cookie('token', token, {
           httpOnly: true,
-          secure: false,
-          // sameSite: 'none'
+          secure: true,
+          // sameSite: 'none',
         })
         .send({ success: true })
     })
@@ -120,10 +126,28 @@ async function run() {
       res.send(users)
     })
 
-    // booking related endpoints
     app.post('/api/v1/bookings', async (req, res) => {
       const booking = req.body
-      const result = await bookingCollection.insertOne(booking)
+
+      const roomId = booking.room_id
+      const query = { _id: new ObjectId(roomId) }
+
+      const room = await roomCollection.findOne(filter)
+      const currentAvailability = room.availability
+
+      if (currentAvailability <= 0) {
+        return res.status(400).send({ message: 'Room is not available' })
+      }
+
+      const updateDoc = {
+        $inc: { availability: -1 },
+      }
+
+      await roomCollection.updateOne(query, updateDoc)
+
+      const result = await bookingCollection.insertOne(booking, {
+        unique: true,
+      })
       res.send(result)
     })
 
@@ -136,14 +160,14 @@ async function run() {
       res.send(result)
     })
 
-    app.get('/api/v1/bookings/:id', async (req, res) => {
+    app.get('/api/v1/bookings/:id', verifyToken, async (req, res) => {
       const id = req.params.id
       const query = { _id: new ObjectId(id) }
       const result = await bookingCollection.findOne(query)
       res.send(result)
     })
 
-    app.patch('/api/v1/bookings/:id', async (req, res) => {
+    app.patch('/api/v1/bookings/:id', verifyToken, async (req, res) => {
       const id = req.params.id
       const filter = { _id: new ObjectId(id) }
 
