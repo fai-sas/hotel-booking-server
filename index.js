@@ -11,14 +11,28 @@ app.use(
   cors({
     origin: [
       'http://localhost:5173',
-      'http://localhost:5174',
       'https://hotel-booking-cf.netlify.app',
-      'https://hotel-booking-1f71b.firebaseapp.com',
-      'https://hotel-booking-1f71b.web.app',
+      'https://hotel-booking-server-rho.vercel.app',
     ],
     credentials: true,
   })
 )
+
+app.use((req, res, next) => {
+  res.header(
+    'Access-Control-Allow-Origin',
+    'http://localhost:5173',
+    'https://hotel-booking-cf.netlify.app'
+  ) // Update with your actual client's origin
+  res.header('Access-Control-Allow-Credentials', true)
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE')
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept'
+  )
+
+  next()
+})
 
 app.use(express.json())
 app.use(cookieParser())
@@ -59,6 +73,9 @@ async function run() {
     const bookingCollection = client
       .db('HotelBooking')
       .collection('RoomBookings')
+    const reviewCollection = client
+      .db('HotelBooking')
+      .collection('HotelReviews')
 
     // auth related endpoints
     app.post('/api/v1/jwt', async (req, res) => {
@@ -73,7 +90,8 @@ async function run() {
         .cookie('token', token, {
           httpOnly: true,
           secure: true,
-          // sameSite: 'none',
+          sameSite: 'none',
+          maxAge: 60 * 60 * 1000,
         })
         .send({ success: true })
     })
@@ -81,7 +99,9 @@ async function run() {
     app.post('/api/v1/logout', async (req, res) => {
       const user = req.body
       console.log('logging out', user)
-      res.clearCookie('token', { maxAge: 0 }).send({ success: true })
+      res
+        .clearCookie('token', { maxAge: 0, secure: true, sameSite: 'none' })
+        .send({ success: true })
     })
 
     // rooms related endpoints
@@ -129,26 +149,32 @@ async function run() {
     app.post('/api/v1/bookings', async (req, res) => {
       const booking = req.body
 
-      const roomId = booking.room_id
-      const query = { _id: new ObjectId(roomId) }
+      const roomQuery = { _id: new ObjectId(booking.room_id) }
+      const room = await roomCollection.findOne(roomQuery)
 
-      const room = await roomCollection.findOne(filter)
-      const currentAvailability = room.availability
+      if (room.availability > 0) {
+        const alreadyBooked = await bookingCollection.findOne({
+          room_id: booking.room_id,
+          date: booking.date,
+        })
 
-      if (currentAvailability <= 0) {
-        return res.status(400).send({ message: 'Room is not available' })
+        if (alreadyBooked) {
+          res
+            .status(400)
+            .send({ message: 'Room is already booked for that time' })
+        } else {
+          const result = await bookingCollection.insertOne(booking)
+
+          const updateDoc = {
+            $inc: { availability: -1 },
+          }
+          await roomCollection.updateOne(roomQuery, updateDoc)
+
+          res.send(result)
+        }
+      } else {
+        res.status(400).send({ message: 'Room is not available' })
       }
-
-      const updateDoc = {
-        $inc: { availability: -1 },
-      }
-
-      await roomCollection.updateOne(query, updateDoc)
-
-      const result = await bookingCollection.insertOne(booking, {
-        unique: true,
-      })
-      res.send(result)
     })
 
     app.get('/api/v1/bookings', verifyToken, async (req, res) => {
@@ -160,14 +186,14 @@ async function run() {
       res.send(result)
     })
 
-    app.get('/api/v1/bookings/:id', verifyToken, async (req, res) => {
+    app.get('/api/v1/bookings/:id', async (req, res) => {
       const id = req.params.id
       const query = { _id: new ObjectId(id) }
       const result = await bookingCollection.findOne(query)
       res.send(result)
     })
 
-    app.patch('/api/v1/bookings/:id', verifyToken, async (req, res) => {
+    app.patch('/api/v1/bookings/:id', async (req, res) => {
       const id = req.params.id
       const filter = { _id: new ObjectId(id) }
 
@@ -183,9 +209,46 @@ async function run() {
     })
 
     app.delete('/api/v1/delete-booking/:id', verifyToken, async (req, res) => {
+      const bookingId = req.params.id
+      const query = { _id: new ObjectId(bookingId) }
+
+      const booking = await bookingCollection.findOne(query)
+
+      if (!booking) {
+        return res.status(404).send({ message: 'Booking not found' })
+      }
+
+      const roomId = booking.room_id
+
+      const filter = { _id: new ObjectId(roomId) }
+      const updateDoc = {
+        $inc: { availability: 1 },
+      }
+
+      await roomCollection.updateOne(filter, updateDoc)
+
+      const result = await bookingCollection.deleteOne(query)
+
+      res.send(result)
+    })
+
+    // review comment related end points
+    app.post('/api/v1/reviews', verifyToken, async (req, res) => {
+      const review = req.body
+      const result = await reviewCollection.insertOne(review)
+      res.send(result)
+    })
+
+    app.get('/api/v1/reviews', async (req, res) => {
+      const cursor = reviewCollection.find()
+      const review = await cursor.toArray()
+      res.send(review)
+    })
+
+    app.get('/api/v1/reviews/:id', async (req, res) => {
       const id = req.params.id
       const query = { _id: new ObjectId(id) }
-      const result = await bookingCollection.deleteOne(query)
+      const result = await reviewCollection.findOne(query)
       res.send(result)
     })
 
