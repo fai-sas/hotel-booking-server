@@ -208,7 +208,7 @@ async function run() {
       res.send(result)
     })
 
-    app.delete('/api/v1/delete-booking/:id', verifyToken, async (req, res) => {
+    app.delete('/api/v1/delete-booking/:id', async (req, res) => {
       const bookingId = req.params.id
       const query = { _id: new ObjectId(bookingId) }
 
@@ -250,6 +250,22 @@ async function run() {
       const query = { _id: new ObjectId(id) }
       const result = await reviewCollection.findOne(query)
       res.send(result)
+    })
+
+    app.get('/api/v1/bookings/check', async (req, res) => {
+      const room = req.query.id
+      const email = req.query.user_email
+
+      const roomId = { _id: new ObjectId(room) }
+
+      const query = { roomId, email }
+      const booking = await bookingCollection.findOne(query)
+
+      if (booking) {
+        res.status(200).json({ hasBooking: true, booking: booking })
+      } else {
+        res.status(200).json({ hasBooking: false })
+      }
     })
 
     //  Send a ping to confirm a successful connection
