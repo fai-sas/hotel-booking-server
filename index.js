@@ -59,6 +59,7 @@ const verifyToken = async (req, res, next) => {
       return res.status(401).send({ message: 'unauthorized access' })
     }
     req.user = decoded
+    console.log(decoded)
     next()
   })
 }
@@ -235,14 +236,28 @@ async function run() {
     // review comment related end points
     app.post('/api/v1/reviews', verifyToken, async (req, res) => {
       const review = req.body
+      const userEmail = req.user.email // Extracted from the token
+
+      // Check if the user has booked the room
+      const hasBooked = await bookingCollection.findOne({
+        room_id: review.room_id, // Make sure to send the room_id in the request
+        email: userEmail,
+      })
+
+      if (!hasBooked) {
+        return res.status(401).send({
+          message: 'Please book the room first to post a review',
+        })
+      }
+
       const result = await reviewCollection.insertOne(review)
       res.send(result)
     })
 
     app.get('/api/v1/reviews', async (req, res) => {
       const cursor = reviewCollection.find()
-      const review = await cursor.toArray()
-      res.send(review)
+      const reviews = await cursor.toArray()
+      res.send(reviews)
     })
 
     app.get('/api/v1/reviews/:id', async (req, res) => {
@@ -250,22 +265,6 @@ async function run() {
       const query = { _id: new ObjectId(id) }
       const result = await reviewCollection.findOne(query)
       res.send(result)
-    })
-
-    app.get('/api/v1/bookings/check', async (req, res) => {
-      const room = req.query.id
-      const email = req.query.user_email
-
-      const roomId = { _id: new ObjectId(room) }
-
-      const query = { roomId, email }
-      const booking = await bookingCollection.findOne(query)
-
-      if (booking) {
-        res.status(200).json({ hasBooking: true, booking: booking })
-      } else {
-        res.status(200).json({ hasBooking: false })
-      }
     })
 
     //  Send a ping to confirm a successful connection
